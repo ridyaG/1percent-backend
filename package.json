@@ -11,7 +11,8 @@
     "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
     "test": "NODE_ENV=test PORT=0 jest --coverage --forceExit",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
