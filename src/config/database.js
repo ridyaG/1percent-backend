@@ -1,15 +1,15 @@
-const { PrismaClient } = require('@prisma/client')
-const { PrismaPg } = require('@prisma/adapter-pg')
-const { Pool } = require('pg')
+// src/config/database.js
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL
-})
+const { PrismaClient } = require('@prisma/client');
+const { PrismaPg } = require('@prisma/adapter-pg');
 
-const adapter = new PrismaPg(pool)
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL,
+});
 
 const prisma = new PrismaClient({
-  adapter
-})
+  adapter,
+  log: process.env.NODE_ENV === 'development' ? ['query'] : [],
+});
 
-module.exports = prisma
+module.exports = prisma;
