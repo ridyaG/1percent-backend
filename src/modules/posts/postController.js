@@ -7,7 +7,10 @@ exports.createPost = async (req, res, next) => {
       data: {
         authorId: req.user.id,
         content: req.body.content,
-        postType: req.body.postType || "daily_win"
+        postType: req.body.postType || "daily_win",
+        privacy: "public", 
+        publishedAt: new Date(), 
+        isDeleted: false
       },
       include: {
         author: {

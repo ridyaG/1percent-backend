@@ -13,14 +13,14 @@ exports.getHomeFeed = async (userId, cursor, limit = 20) => {
     where: {
       authorId: { in: followingIds },
       isDeleted: false,
-      privacy: { in: ['public', 'followers'] },
-      ...(cursor ? { publishedAt: { lt: new Date(cursor) } } : {}),
+      privacy: { in: ['public', 'followers', null] },
+      ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
     },
     include: {
       author: { select: { id: true, username: true, displayName: true, avatarUrl: true, currentStreak: true } },
       _count: { select: { likes: true, comments: true } },
     },
-    orderBy: { publishedAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     take: limit + 1,  // fetch one extra to know if there's a next page
   });
 
