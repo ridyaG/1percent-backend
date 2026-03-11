@@ -11,7 +11,6 @@ exports.getHomeFeed = async (userId, cursor, limit = 20) => {
     where: {
       authorId: { in: followingIds },
       isDeleted: false,
-      // FIX: use OR to handle null privacy
       OR: [
         { privacy: { in: ['public', 'followers'] } },
         { privacy: null }
