@@ -3,6 +3,6 @@ const { authenticate } = require('../../middleware/auth');
 const ctrl = require('./postController');
 
 router.post('/', authenticate, ctrl.createPost);
-router.get('/feed', authenticate, ctrl.getFeed);
+router.get('/feed/home', authenticate, ctrl.getFeed);
 
 module.exports = router;
