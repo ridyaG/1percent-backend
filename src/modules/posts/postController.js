@@ -1,4 +1,5 @@
 const prisma = require('../../config/database');
+const feedService = require('./feedService');
 
 exports.createPost = async (req, res, next) => {
   try {
@@ -24,20 +25,18 @@ exports.createPost = async (req, res, next) => {
 
 exports.getFeed = async (req, res, next) => {
   try {
-    const limit = parseInt(req.query.limit) || 20;
-    
-    const posts = await prisma.post.findMany({
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      include: {
-        author: {
-          select: { id: true, username: true, displayName: true, avatarUrl: true }
-        },
-        _count: { select: { likes: true, comments: true } }
-      }
+    const { cursor, limit } = req.query;
+    const result = await feedService.getHomeFeed(
+      req.user.id,
+      cursor || null,
+      parseInt(limit) || 20
+    );
+    res.json({ 
+      success: true, 
+      data: result.posts, 
+      nextCursor: result.nextCursor, 
+      hasMore: result.hasMore 
     });
-
-    res.json({ success: true, data: posts });
   } catch (err) {
     next(err);
   }
