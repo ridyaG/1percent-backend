@@ -33,6 +33,8 @@ app.use('/api/v1/users', require('./modules/users/userRoutes'));
 app.use('/api/v1/posts', require('./modules/posts/postRoutes'));
 app.use('/api/v1/challenges', require('./modules/challenges/challengeRoutes'));
 app.use('/api/v1/search', require('./modules/search/searchRoutes'));
+app.use('/api/v1/posts', require('./modules/likes/likeRoutes'));
+app.use('/api/v1/posts', require('./modules/comments/commentRoutes'));
 
 // Make io accessible to route handlers
 app.set('io', io);
