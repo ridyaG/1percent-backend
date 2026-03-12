@@ -14,13 +14,13 @@ const io = new Server(server, {
 
 const { startScheduler } = require('./jobs/scheduler');
 
-
 // ── Middleware ────────────────────────────────
 app.use(helmet());
 app.use(cors({ origin: process.env.CLIENT_URL, credentials: true }));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/v1/challenges', require('./modules/challenges/challengeRoutes'));
 
 // ── Health Check ─────────────────────────────
 app.get('/health', (req, res) => {
@@ -31,6 +31,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', require('./modules/auth/authRoutes'));
 app.use('/api/v1/users', require('./modules/users/userRoutes'));
 app.use('/api/v1/posts', require('./modules/posts/postRoutes'));
+app.use('/api/v1/challenges', require('./modules/challenges/challengeRoutes'));
 
 // Make io accessible to route handlers
 app.set('io', io);
@@ -69,4 +70,4 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-module.exports = app; // export for tests
+module.exports = app; 
