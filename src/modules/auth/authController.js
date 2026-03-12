@@ -86,7 +86,7 @@ exports.login = async (req, res, next) => {
       success: true,
       user: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, currentStreak: user.currentStreak },
       accessToken,
-      refreshToken
+      refreshToken,
     });
   } catch (err) { next(err); }
 };
