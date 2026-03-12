@@ -76,6 +76,8 @@ model User {
   notificationsReceived Notification[] @relation("recipient")
   notificationsSent     Notification[] @relation("actor")
   refreshTokens    RefreshToken[]
+  createdChallenges Challenge[] @relation("created_challenges")
+  challengeParticipants ChallengeParticipant[]
 
   @@map("users")
 }
@@ -188,4 +190,46 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
+}
+
+model Challenge {
+  id          String   @id @default(uuid())
+  creatorId   String   @map("creator_id")
+  title       String
+  description String?
+  goal        String
+  startDate   DateTime @map("start_date")
+  endDate     DateTime @map("end_date")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  creator User @relation("created_challenges", fields: [creatorId], references: [id], onDelete: Cascade)
+  
+  participants ChallengeParticipant[]
+  posts        ChallengePost[]
+
+  @@map("challenges")
+}
+
+model ChallengeParticipant {
+  userId      String   @map("user_id")
+  challengeId String   @map("challenge_id")
+  joinedAt    DateTime @default(now()) @map("joined_at")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, challengeId])
+  @@map("challenge_participants")
+}
+
+model ChallengePost {
+  postId      String @map("post_id")
+  challengeId String @map("challenge_id")
+
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@id([postId, challengeId])
+  @@map("challenge_posts")
 }
