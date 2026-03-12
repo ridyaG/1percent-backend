@@ -84,10 +84,13 @@ exports.login = async (req, res, next) => {
 
     res.json({
       success: true,
-      user: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, currentStreak: user.currentStreak },
-      accessToken,
-      refreshToken,
+      data: {
+        user: { id: user.id, username: user.username, displayName: user.displayName, avatarUrl: user.avatarUrl, currentStreak: user.currentStreak },
+        accessToken,
+        refreshToken,
+      }
     });
+    
   } catch (err) { next(err); }
 };
 
