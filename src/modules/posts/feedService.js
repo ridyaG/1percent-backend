@@ -1,20 +1,19 @@
 const prisma = require('../../config/database');
 
 exports.getHomeFeed = async (userId, cursor, limit = 20) => {
+  // Get IDs of people this user follows
   const following = await prisma.follow.findMany({
     where: { followerId: userId, status: 'accepted' },
     select: { followingId: true }
   });
-  const followingIds = [...following.map(f => f.followingId), userId];
+  const followingIds = [...following.map(f => f.followingId), userId]; // include own posts
 
+  // Fetch posts with cursor-based pagination
   const posts = await prisma.post.findMany({
     where: {
       authorId: { in: followingIds },
       isDeleted: false,
-      OR: [
-        { privacy: { in: ['public', 'followers'] } },
-        { privacy: null }
-      ],
+      privacy: { in: ['public', 'followers'] },
       ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
     },
     include: {
@@ -22,12 +21,12 @@ exports.getHomeFeed = async (userId, cursor, limit = 20) => {
       _count: { select: { likes: true, comments: true } },
     },
     orderBy: { createdAt: 'desc' },
-    take: limit + 1,
+    take: limit + 1,  // fetch one extra to know if there's a next page
   });
 
   const hasMore = posts.length > limit;
   const results = hasMore ? posts.slice(0, limit) : posts;
-  const nextCursor = hasMore ? results[results.length - 1].createdAt.toISOString() : null;
+  const nextCursor = hasMore ? results[results.length - 1].publishedAt.toISOString() : null;
 
   return { posts: results, nextCursor, hasMore };
 };
