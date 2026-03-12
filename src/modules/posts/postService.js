@@ -10,8 +10,17 @@ exports.createPost = async (authorId, data) => {
   const today = new Date().toISOString().split('T')[0];
   const user = await prisma.user.findUnique({ where: { id: authorId } });
 
+  const lastDate = user.lastPostDate?.toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+  const isConsecutive = lastDate === yesterday;
+  const alreadyPostedToday = lastDate === today;
+  const newStreak = alreadyPostedToday
+    ? user.currentStreak
+    : isConsecutive
+    ? user.currentStreak + 1
+    : 1;
+
   return prisma.$transaction(async (tx) => {
-    // 1. Create the post
     const post = await tx.post.create({
       data: {
         authorId,
@@ -19,7 +28,7 @@ exports.createPost = async (authorId, data) => {
         content: data.content,
         hashtags: extractHashtags(data.content),
         privacy: data.privacy || 'public',
-        streakDay: user.currentStreak + 1,
+        streakDay: newStreak,
         publishedAt: new Date(),
       },
       include: {
