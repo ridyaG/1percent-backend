@@ -100,6 +100,7 @@ model Post {
   author       User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
   comments     Comment[]
   likes        Like[]
+  challengePosts ChallengePost[]
 
   @@index([authorId, publishedAt(sort: Desc)])
   @@map("posts")
@@ -215,8 +216,7 @@ model ChallengeParticipant {
   userId      String   @map("user_id")
   challengeId String   @map("challenge_id")
   joinedAt    DateTime @default(now()) @map("joined_at")
-
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   challenge Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
 
   @@id([userId, challengeId])
