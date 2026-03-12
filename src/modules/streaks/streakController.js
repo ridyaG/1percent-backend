@@ -1,3 +1,5 @@
+const prisma = require('../../config/database');
+
 exports.getLeaderboard = async (req, res, next) => {
   try {
     const leaders = await prisma.user.findMany({

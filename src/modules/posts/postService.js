@@ -1,14 +1,13 @@
 const prisma = require('../../config/database');
+const { checkAndAwardBadges } = require('../streaks/badgeService');
 
-// Extract hashtags from content
 function extractHashtags(content) {
   const matches = content.match(/#(\w+)/g);
   return matches ? matches.map(t => t.toLowerCase()) : [];
 }
 
-// Core function: create post + update streak
 exports.createPost = async (authorId, data) => {
-  const today = new Date().toISOString().split('T')[0];  // '2026-03-08'
+  const today = new Date().toISOString().split('T')[0];
   const user = await prisma.user.findUnique({ where: { id: authorId } });
 
   return prisma.$transaction(async (tx) => {
@@ -21,8 +20,17 @@ exports.createPost = async (authorId, data) => {
         hashtags: extractHashtags(data.content),
         privacy: data.privacy || 'public',
         streakDay: user.currentStreak + 1,
+        publishedAt: new Date(),
       },
-      include: { author: { select: { id: true, username: true, displayName: true, avatarUrl: true, currentStreak: true } } }
+      include: {
+        author: {
+          select: {
+            id: true, username: true, displayName: true,
+            avatarUrl: true, currentStreak: true
+          }
+        },
+        _count: { select: { likes: true, comments: true } },
+      }
     });
 
     // 2. Update streak (only if first post today)
@@ -40,6 +48,9 @@ exports.createPost = async (authorId, data) => {
           lastPostDate: new Date(),
         }
       });
+
+      // 3. Award badges
+      await checkAndAwardBadges(authorId, newStreak, tx);
     }
 
     return post;
