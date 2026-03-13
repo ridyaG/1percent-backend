@@ -30,4 +30,25 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-module.exports = { authenticate };
+const authenticateOptional = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split(' ')[1];
+    const payload = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+    const user = await prisma.user.findUnique({ where: { id: payload.sub } });
+
+    if (user) {
+      req.user = user;
+    }
+
+    next();
+  } catch {
+    next();
+  }
+};
+
+module.exports = { authenticate, authenticateOptional };

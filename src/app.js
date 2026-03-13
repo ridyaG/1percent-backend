@@ -37,6 +37,7 @@ app.use('/api/v1/posts', require('./modules/likes/likeRoutes'));
 app.use('/api/v1/posts', require('./modules/comments/commentRoutes'));
 app.use('/api/v1/streaks', require('./modules/streaks/streakRoutes'));
 app.use('/api/v1/notifications', require('./modules/notifications/notificationRoutes'));
+app.use('/api/v1/chat', require('./modules/chat/chatRoutes'));
 
 // Make io accessible to route handlers
 app.set('io', io);
@@ -49,6 +50,10 @@ io.on('connection', (socket) => {
   socket.on('join_room', ({ userId }) => {
     socket.join(`user:${userId}`);
     console.log(`User ${userId} joined their notification room`);
+  });
+
+  socket.on('join_conversation', ({ conversationId }) => {
+    socket.join(`conversation:${conversationId}`);
   });
 
   socket.on('disconnect', () => {

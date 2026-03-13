@@ -1,4 +1,5 @@
 const prisma = require('../../config/database');
+const { sendNotification } = require('../notifications/notificationService');
 
 exports.getProfile = async (req, res, next) => {
   try {
@@ -8,12 +9,29 @@ exports.getProfile = async (req, res, next) => {
         id: true, username: true, displayName: true, bio: true,
         avatarUrl: true, coverUrl: true, websiteUrl: true, location: true,
         currentStreak: true, longestStreak: true, focusAreas: true,
-        createdAt: true,
+        goalStatement: true, isPrivate: true, createdAt: true,
         _count: { select: { posts: true, followers: true, following: true } }
       }
     });
     if (!user) return res.status(404).json({ success: false, error: 'User not found' });
-    res.json({ success: true, data: user });
+
+    let isFollowing = false;
+    let followStatus = null;
+
+    if (req.user && req.user.id !== user.id) {
+      const follow = await prisma.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: req.user.id,
+            followingId: user.id,
+          },
+        },
+      });
+      isFollowing = follow?.status === 'accepted';
+      followStatus = follow?.status ?? null;
+    }
+
+    res.json({ success: true, data: { ...user, isFollowing, followStatus } });
   } catch (err) { next(err); }
 };
 
@@ -34,6 +52,15 @@ exports.followUser = async (req, res, next) => {
       where: { followerId_followingId: { followerId, followingId } },
       create: { followerId, followingId, status },
       update: {},
+    });
+
+    const io = req.app.get('io');
+    await sendNotification(io, {
+      recipientId: followingId,
+      actorId: followerId,
+      type: status === 'pending' ? 'follow_request' : 'follow',
+      entityType: 'user',
+      entityId: followerId,
     });
 
     res.json({ success: true, message: status === 'pending' ? 'Follow request sent' : 'Following!' });
