@@ -51,15 +51,13 @@ exports.unfollowUser = async (req, res, next) => {
 
 exports.updateProfile = async (req, res, next) => {
   try {
+    const { displayName, bio, location, websiteUrl, goalStatement, focusAreas, isPrivate } = req.body;
     const user = await prisma.user.update({
       where: { id: req.user.id },
-      data: req.body,
+      data: { displayName, bio, location, websiteUrl, goalStatement, focusAreas, isPrivate },
     });
-
     res.json({ success: true, data: user });
-  } catch (err) {
-    next(err);
-  }
+  } catch (err) { next(err); }
 };
 
 exports.getUserPosts = async (req, res, next) => {

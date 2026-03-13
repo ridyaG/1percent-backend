@@ -3,10 +3,10 @@ const { authenticate } = require('../../middleware/auth');
 const ctrl = require('./postController');
 const prisma = require('../../config/database');
 
-router.post('/', authenticate, ctrl.createPost);
 router.get('/feed/home', authenticate, ctrl.getFeed);
+router.get('/feed/explore', authenticate, ctrl.getExploreFeed);
 
-// Like/unlike
+router.post('/', authenticate, ctrl.createPost);
 router.post('/:id/like', authenticate, async (req, res, next) => {
   try {
     const postId = req.params.id;

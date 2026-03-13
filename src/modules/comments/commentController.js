@@ -1,42 +1,33 @@
 const prisma = require('../../config/database');
+const { sendNotification } = require('../notifications/notificationService');
 
-exports.addComment = async (req, res, next) => {
+exports.toggleLike = async (req, res, next) => {
   try {
-    const { content, parentId } = req.body;
-    if (!content || content.length > 500) {
-      return res.status(400).json({ success: false, error: 'Comment must be 1-500 chars' });
+    const postId = req.params.id;
+    const userId = req.user.id;
+
+    const existing = await prisma.like.findUnique({
+      where: { userId_postId: { userId, postId } }
+    });
+
+    if (existing) {
+      await prisma.like.delete({ where: { userId_postId: { userId, postId } } });
+      return res.json({ success: true, data: { liked: false } });
     }
 
-    const comment = await prisma.comment.create({
-      data: {
-        postId: req.params.id,
-        authorId: req.user.id,
-        content,
-        parentId: parentId || null, // null = top-level, ID = reply
-      },
-      include: { author: { select: { id: true, username: true, displayName: true, avatarUrl: true } } }
+    await prisma.like.create({ data: { userId, postId, reaction: req.body.reaction || 'like' } });
+
+    // Notify post author
+    const post = await prisma.post.findUnique({ where: { id: postId }, select: { authorId: true } });
+    const io = req.app.get('io');
+    await sendNotification(io, {
+      recipientId: post.authorId,
+      actorId: userId,
+      type: 'like',
+      entityType: 'post',
+      entityId: postId,
     });
 
-    res.status(201).json({ success: true, data: comment });
+    res.json({ success: true, data: { liked: true } });
   } catch (err) { next(err); }
 };
-
-exports.getComments = async (req, res, next) => {
-  try {
-    const comments = await prisma.comment.findMany({
-      where: { postId: req.params.id, parentId: null, isDeleted: false },
-      include: {
-        author: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
-        replies: {
-          where: { isDeleted: false },
-          include: { author: { select: { id: true, username: true, displayName: true, avatarUrl: true } } },
-          orderBy: { createdAt: 'asc' },
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 20,
-    });
-    res.json({ success: true, data: comments });
-  } catch (err) { next(err); }
-};
- 

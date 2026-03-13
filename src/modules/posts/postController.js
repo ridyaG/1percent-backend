@@ -35,3 +35,36 @@ exports.getFeed = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getExploreFeed = async (req, res, next) => {
+  try {
+    const { cursor, limit } = req.query;
+    const posts = await prisma.post.findMany({
+      where: {
+        isDeleted: false,
+        privacy: 'public',
+        ...(cursor ? { publishedAt: { lt: new Date(cursor) } } : {}),
+      },
+      include: {
+        author: {
+          select: { id: true, username: true, displayName: true, avatarUrl: true, currentStreak: true }
+        },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: (parseInt(limit) || 20) + 1,
+    });
+
+    const lim = parseInt(limit) || 20;
+    const hasMore = posts.length > lim;
+    const results = hasMore ? posts.slice(0, lim) : posts;
+    res.json({
+      success: true,
+      data: {
+        posts: results,
+        nextCursor: hasMore ? results[results.length - 1].publishedAt.toISOString() : null,
+        hasMore,
+      }
+    });
+  } catch (err) { next(err); }
+};
