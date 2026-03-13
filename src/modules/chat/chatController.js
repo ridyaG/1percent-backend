@@ -28,6 +28,26 @@ const getConversationInclude = (messageTake = 1) => ({
   },
 });
 
+async function ensureMembership(conversationId, userId) {
+  return prisma.conversationParticipant.findUnique({
+    where: {
+      conversationId_userId: {
+        conversationId,
+        userId,
+      },
+    },
+  });
+}
+
+async function getParticipantIds(conversationId) {
+  const participants = await prisma.conversationParticipant.findMany({
+    where: { conversationId },
+    select: { userId: true },
+  });
+
+  return participants.map(participant => participant.userId);
+}
+
 exports.getConversations = async (req, res, next) => {
   try {
     const conversations = await prisma.conversation.findMany({
@@ -91,14 +111,7 @@ exports.createOrGetConversation = async (req, res, next) => {
 
 exports.getMessages = async (req, res, next) => {
   try {
-    const membership = await prisma.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId: req.params.id,
-          userId: req.user.id,
-        },
-      },
-    });
+    const membership = await ensureMembership(req.params.id, req.user.id);
 
     if (!membership) {
       return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
@@ -138,14 +151,7 @@ exports.sendMessage = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Message content is required' });
     }
 
-    const membership = await prisma.conversationParticipant.findUnique({
-      where: {
-        conversationId_userId: {
-          conversationId: req.params.id,
-          userId: req.user.id,
-        },
-      },
-    });
+    const membership = await ensureMembership(req.params.id, req.user.id);
 
     if (!membership) {
       return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
@@ -179,23 +185,19 @@ exports.sendMessage = async (req, res, next) => {
       data: { lastReadAt: new Date() },
     });
 
-    const participants = await prisma.conversationParticipant.findMany({
-      where: { conversationId: req.params.id },
-      select: { userId: true },
-    });
-
     const io = req.app.get('io');
+    const participantIds = await getParticipantIds(req.params.id);
 
-    for (const participant of participants) {
-      io.to(`user:${participant.userId}`).emit('new_message', {
+    for (const participantId of participantIds) {
+      io.to(`user:${participantId}`).emit('new_message', {
         conversationId: req.params.id,
         message,
       });
 
-      if (participant.userId === req.user.id) continue;
+      if (participantId === req.user.id) continue;
 
       await sendNotification(io, {
-        recipientId: participant.userId,
+        recipientId: participantId,
         actorId: req.user.id,
         type: 'message',
         entityType: 'conversation',
@@ -204,6 +206,130 @@ exports.sendMessage = async (req, res, next) => {
     }
 
     res.json({ success: true, data: message });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateMessage = async (req, res, next) => {
+  try {
+    const content = req.body.content?.trim();
+    if (!content) {
+      return res.status(400).json({ success: false, error: 'Message content is required' });
+    }
+
+    const membership = await ensureMembership(req.params.id, req.user.id);
+    if (!membership) {
+      return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
+    }
+
+    const existingMessage = await prisma.directMessage.findUnique({
+      where: { id: req.params.messageId },
+    });
+
+    if (!existingMessage || existingMessage.conversationId !== req.params.id || existingMessage.isDeleted) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+
+    if (existingMessage.senderId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'You can only edit your own messages' });
+    }
+
+    const message = await prisma.directMessage.update({
+      where: { id: req.params.messageId },
+      data: { content },
+      include: {
+        sender: {
+          select: participantUserSelect,
+        },
+      },
+    });
+
+    await prisma.conversation.update({
+      where: { id: req.params.id },
+      data: { updatedAt: new Date() },
+    });
+
+    const io = req.app.get('io');
+    const participantIds = await getParticipantIds(req.params.id);
+    participantIds.forEach(participantId => {
+      io.to(`user:${participantId}`).emit('message_updated', {
+        conversationId: req.params.id,
+        message,
+      });
+    });
+
+    res.json({ success: true, data: message });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteMessage = async (req, res, next) => {
+  try {
+    const membership = await ensureMembership(req.params.id, req.user.id);
+    if (!membership) {
+      return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
+    }
+
+    const existingMessage = await prisma.directMessage.findUnique({
+      where: { id: req.params.messageId },
+    });
+
+    if (!existingMessage || existingMessage.conversationId !== req.params.id || existingMessage.isDeleted) {
+      return res.status(404).json({ success: false, error: 'Message not found' });
+    }
+
+    if (existingMessage.senderId !== req.user.id) {
+      return res.status(403).json({ success: false, error: 'You can only delete your own messages' });
+    }
+
+    await prisma.directMessage.update({
+      where: { id: req.params.messageId },
+      data: { isDeleted: true, content: '[deleted]' },
+    });
+
+    await prisma.conversation.update({
+      where: { id: req.params.id },
+      data: { updatedAt: new Date() },
+    });
+
+    const io = req.app.get('io');
+    const participantIds = await getParticipantIds(req.params.id);
+    participantIds.forEach(participantId => {
+      io.to(`user:${participantId}`).emit('message_deleted', {
+        conversationId: req.params.id,
+        messageId: req.params.messageId,
+      });
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteConversation = async (req, res, next) => {
+  try {
+    const membership = await ensureMembership(req.params.id, req.user.id);
+    if (!membership) {
+      return res.status(403).json({ success: false, error: 'Not a participant in this conversation' });
+    }
+
+    const participantIds = await getParticipantIds(req.params.id);
+
+    await prisma.conversation.delete({
+      where: { id: req.params.id },
+    });
+
+    const io = req.app.get('io');
+    participantIds.forEach(participantId => {
+      io.to(`user:${participantId}`).emit('conversation_deleted', {
+        conversationId: req.params.id,
+      });
+    });
+
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }
