@@ -115,3 +115,27 @@ exports.getSuggestions = async (req, res, next) => {
     next(err);
   }
 };
+
+exports.getUserPosts = async (req, res, next) => {
+  try {
+    const posts = await prisma.post.findMany({
+      where: {
+        authorId: req.params.id,
+        isDeleted: false,
+        privacy: 'public',
+      },
+      include: {
+        author: {
+          select: {
+            id: true, username: true, displayName: true,
+            avatarUrl: true, currentStreak: true,
+          }
+        },
+        _count: { select: { likes: true, comments: true } },
+      },
+      orderBy: { publishedAt: 'desc' },
+      take: 50,
+    });
+    res.json({ success: true, data: posts });
+  } catch (err) { next(err); }
+};
