@@ -65,3 +65,59 @@ exports.createPost = async (authorId, data) => {
     return post;
   });
 };
+
+exports.updatePost = async (authorId, postId, data) => {
+  const existingPost = await prisma.post.findFirst({
+    where: {
+      id: postId,
+      authorId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingPost) {
+    const error = new Error('Post not found');
+    error.status = 404;
+    throw error;
+  }
+
+  return prisma.post.update({
+    where: { id: postId },
+    data: {
+      content: data.content,
+      postType: data.postType || existingPost.postType,
+      hashtags: extractHashtags(data.content),
+      privacy: data.privacy || existingPost.privacy,
+    },
+    include: {
+      author: {
+        select: {
+          id: true, username: true, displayName: true,
+          avatarUrl: true, currentStreak: true,
+        },
+      },
+      _count: { select: { likes: true, comments: true } },
+    },
+  });
+};
+
+exports.deletePost = async (authorId, postId) => {
+  const existingPost = await prisma.post.findFirst({
+    where: {
+      id: postId,
+      authorId,
+      isDeleted: false,
+    },
+  });
+
+  if (!existingPost) {
+    const error = new Error('Post not found');
+    error.status = 404;
+    throw error;
+  }
+
+  await prisma.post.update({
+    where: { id: postId },
+    data: { isDeleted: true },
+  });
+};

@@ -7,6 +7,8 @@ router.get('/feed/home', authenticate, ctrl.getFeed);
 router.get('/feed/explore', authenticate, ctrl.getExploreFeed);
 
 router.post('/', authenticate, ctrl.createPost);
+router.patch('/:id', authenticate, ctrl.updatePost);
+router.delete('/:id', authenticate, ctrl.deletePost);
 router.post('/:id/like', authenticate, async (req, res, next) => {
   try {
     const postId = req.params.id;

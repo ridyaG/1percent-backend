@@ -1,5 +1,6 @@
 const postService = require('./postService');
 const feedService = require('./feedService');
+const prisma = require('../../config/database');
 
 exports.createPost = async (req, res, next) => {
   try {
@@ -67,4 +68,27 @@ exports.getExploreFeed = async (req, res, next) => {
       }
     });
   } catch (err) { next(err); }
+};
+
+exports.updatePost = async (req, res, next) => {
+  try {
+    const post = await postService.updatePost(req.user.id, req.params.id, {
+      content: req.body.content,
+      postType: req.body.postType,
+      privacy: req.body.privacy,
+    });
+
+    res.json({ success: true, data: post });
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deletePost = async (req, res, next) => {
+  try {
+    await postService.deletePost(req.user.id, req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
 };
